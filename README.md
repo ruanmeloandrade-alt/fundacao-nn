@@ -1,25 +1,26 @@
 # Fundacao NN
 
-Migracao inicial do projeto Lovable **FUNDAÇÃO NN** para GitHub.
+Site independente com projetos, treinamentos, doacoes e painel administrativo preparado para Supabase. Sem dependencias de runtime da Lovable.
 
-Projeto original Lovable: https://lovable.dev/projects/4c386d35-e78d-49d8-a882-8c3cfaf6898d
+## Rodar localmente
 
-## Status
-
-- Primeira versao funcional em React + Vite.
-- Publicacao preparada via GitHub Pages workflow.
-- Vitrine institucional criada para sair da dependencia do Lovable.
-- Pix, Stripe, area administrativa e conteudos dinamicos ficam para segunda etapa, com configuracao real.
-
-## Desenvolvimento
-
-```sh
+```bash
 npm install
 npm run dev
 ```
 
+## Variaveis
+
+Configure em ambiente de build se for usar backend real:
+
+```bash
+VITE_SUPABASE_URL=
+VITE_SUPABASE_PUBLISHABLE_KEY=
+VITE_PAYMENTS_CLIENT_TOKEN=
+```
+
 ## Build
 
-```sh
+```bash
 npm run build
 ```

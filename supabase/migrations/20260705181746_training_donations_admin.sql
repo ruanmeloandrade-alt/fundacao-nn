@@ -1,0 +1,26 @@
+CREATE TYPE IF NOT EXISTS public.app_role AS ENUM ('admin');
+CREATE TABLE IF NOT EXISTS public.user_roles (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE, role public.app_role NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(user_id, role));
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role public.app_role) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$ SELECT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = _user_id AND role = _role) $$;
+CREATE POLICY IF NOT EXISTS "Users can view own roles" ON public.user_roles FOR SELECT TO authenticated USING ((select auth.uid()) = user_id);
+
+CREATE TABLE IF NOT EXISTS public.courses (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), slug text NOT NULL UNIQUE, title text NOT NULL, short_desc text, full_desc text, cover_url text, active boolean NOT NULL DEFAULT true, display_order int NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS public.modules (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), course_id uuid NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE, title text NOT NULL, description text, display_order int NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS public.lessons (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), module_id uuid NOT NULL REFERENCES public.modules(id) ON DELETE CASCADE, slug text NOT NULL, title text NOT NULL, description text, video_type text NOT NULL DEFAULT 'youtube', video_url text, active boolean NOT NULL DEFAULT true, display_order int NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS public.lesson_materials (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), lesson_id uuid NOT NULL REFERENCES public.lessons(id) ON DELETE CASCADE, name text NOT NULL, file_url text NOT NULL, kind text NOT NULL DEFAULT 'pdf', display_order int NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS public.donation_settings (id int PRIMARY KEY DEFAULT 1 CHECK (id = 1), title text NOT NULL DEFAULT 'Apoie a Fundação NN', body text NOT NULL DEFAULT 'Sua doação ajuda a manter nossos projetos sociais e treinamentos.', pix_key text NOT NULL DEFAULT '', pix_owner text NOT NULL DEFAULT 'Fundação NN', bank text, qr_url text, thanks_msg text NOT NULL DEFAULT 'Obrigado por apoiar a Fundação NN.', suggested_values jsonb NOT NULL DEFAULT '[10,25,50,100,250]'::jsonb, updated_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS public.site_content (section text PRIMARY KEY, data jsonb NOT NULL DEFAULT '{}'::jsonb, updated_at timestamptz NOT NULL DEFAULT now());
+ALTER TABLE public.courses ENABLE ROW LEVEL SECURITY; ALTER TABLE public.modules ENABLE ROW LEVEL SECURITY; ALTER TABLE public.lessons ENABLE ROW LEVEL SECURITY; ALTER TABLE public.lesson_materials ENABLE ROW LEVEL SECURITY; ALTER TABLE public.donation_settings ENABLE ROW LEVEL SECURITY; ALTER TABLE public.site_content ENABLE ROW LEVEL SECURITY;
+CREATE POLICY IF NOT EXISTS "public read active courses" ON public.courses FOR SELECT USING (active OR public.has_role((select auth.uid()), 'admin'));
+CREATE POLICY IF NOT EXISTS "public read modules" ON public.modules FOR SELECT USING (true);
+CREATE POLICY IF NOT EXISTS "public read active lessons" ON public.lessons FOR SELECT USING (active OR public.has_role((select auth.uid()), 'admin'));
+CREATE POLICY IF NOT EXISTS "public read materials" ON public.lesson_materials FOR SELECT USING (true);
+CREATE POLICY IF NOT EXISTS "public read donation" ON public.donation_settings FOR SELECT USING (true);
+CREATE POLICY IF NOT EXISTS "public read site" ON public.site_content FOR SELECT USING (true);
+CREATE POLICY IF NOT EXISTS "admin manage courses" ON public.courses FOR ALL TO authenticated USING (public.has_role((select auth.uid()), 'admin')) WITH CHECK (public.has_role((select auth.uid()), 'admin'));
+CREATE POLICY IF NOT EXISTS "admin manage modules" ON public.modules FOR ALL TO authenticated USING (public.has_role((select auth.uid()), 'admin')) WITH CHECK (public.has_role((select auth.uid()), 'admin'));
+CREATE POLICY IF NOT EXISTS "admin manage lessons" ON public.lessons FOR ALL TO authenticated USING (public.has_role((select auth.uid()), 'admin')) WITH CHECK (public.has_role((select auth.uid()), 'admin'));
+CREATE POLICY IF NOT EXISTS "admin manage materials" ON public.lesson_materials FOR ALL TO authenticated USING (public.has_role((select auth.uid()), 'admin')) WITH CHECK (public.has_role((select auth.uid()), 'admin'));
+CREATE POLICY IF NOT EXISTS "admin manage donation" ON public.donation_settings FOR ALL TO authenticated USING (public.has_role((select auth.uid()), 'admin')) WITH CHECK (public.has_role((select auth.uid()), 'admin'));
+CREATE POLICY IF NOT EXISTS "admin manage site" ON public.site_content FOR ALL TO authenticated USING (public.has_role((select auth.uid()), 'admin')) WITH CHECK (public.has_role((select auth.uid()), 'admin'));
+INSERT INTO public.donation_settings (id) VALUES (1) ON CONFLICT DO NOTHING;
